@@ -1,0 +1,35 @@
+{
+  "name": "zorvyn-financial-backend",
+  "version": "1.0.0",
+  "description": "Zorvyn Financial Backend is a production-grade, multi-tenant financial data platform designed to handle secure, scalable, and auditable financial operations for organizations.  It implements a modular, layered architecture with strict separation of concerns, enabling high maintainability, performance, and security in real-world backend systems.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KNambiarDJsc/Zorvyn-Financial-Backend.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/KNambiarDJsc/Zorvyn-Financial-Backend/issues"
+  },
+  "homepage": "https://github.com/KNambiarDJsc/Zorvyn-Financial-Backend#readme",
+  "dependencies": {
+    "@fastify/cors": "^11.2.0",
+    "@fastify/helmet": "^13.0.2",
+    "@fastify/swagger": "^9.7.0",
+    "@fastify/swagger-ui": "^5.2.5",
+    "@prisma/client": "^7.6.0",
+    "bcrypt": "^6.0.0",
+    "fastify": "^5.8.4",
+    "ioredis": "^5.10.1",
+    "jsonwebtoken": "^9.0.3",
+    "pino": "^10.3.1",
+    "prisma": "^7.6.0",
+    "zod": "^4.3.6"
+  }
+}
