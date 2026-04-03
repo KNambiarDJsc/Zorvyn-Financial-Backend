@@ -1,0 +1,209 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum OrgStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum RoleName {
+  VIEWER   // read-only dashboard
+  ANALYST  // read + insights
+  ADMIN    // full CRUD
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum RecordType {
+  INCOME
+  EXPENSE
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ORGANIZATION  (multi-tenant root)
+// Every other entity is scoped to an org. No cross-org data leaks possible
+// when queries always filter by orgId.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Organization {
+  id        String    @id @default(uuid())
+  name      String
+  slug      String    @unique  // URL-safe identifier
+  status    OrgStatus @default(ACTIVE)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  users            User[]
+  financialRecords FinancialRecord[]
+  auditLogs        AuditLog[]
+
+  @@map("organizations")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ROLE
+// Kept as a table (not inline enum on User) so permissions can be
+// extended later without schema migration.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Role {
+  id          String   @id @default(uuid())
+  name        RoleName @unique
+  description String?
+  createdAt   DateTime @default(now())
+
+  users User[]
+
+  @@map("roles")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// USER
+// ─────────────────────────────────────────────────────────────────────────────
+
+model User {
+  id           String     @id @default(uuid())
+  orgId        String
+  roleId       String
+  email        String     @unique
+  passwordHash String     // bcrypt — never expose
+  firstName    String
+  lastName     String
+  status       UserStatus @default(ACTIVE)
+  lastLoginAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  organization     Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  role             Role              @relation(fields: [roleId], references: [id])
+  financialRecords FinancialRecord[]
+  auditLogs        AuditLog[]
+  refreshTokens    RefreshToken[]
+
+  @@index([orgId])
+  @@index([roleId])
+  @@index([orgId, status])
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FINANCIAL RECORD
+// Uses Decimal(15,2) — NEVER float for money.
+// Soft delete: isDeleted flag + deletedAt timestamp.
+// All queries MUST include orgId to enforce tenant isolation.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model FinancialRecord {
+  id          String     @id @default(uuid())
+  orgId       String
+  userId      String
+  amount      Decimal    @db.Decimal(15, 2)   // precise money
+  type        RecordType
+  category    String
+  description String?
+  date        DateTime
+  isDeleted   Boolean    @default(false)
+  deletedAt   DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id])
+
+  // ── Critical query path indexes ────────────────────────────────────────────
+  // (orgId, date)     → date-range dashboard queries per tenant
+  // (orgId, type)     → income/expense filtering per tenant
+  // (orgId, category) → category breakdown per tenant
+  // (orgId, isDeleted)→ soft-delete filtering per tenant
+  @@index([orgId, date])
+  @@index([orgId, type])
+  @@index([orgId, category])
+  @@index([orgId, isDeleted])
+  @@index([userId])
+  @@map("financial_records")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUDIT LOG
+// Append-only compliance trail. Never update or delete rows here.
+// before/after store JSON snapshots of entity state before/after mutation.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  orgId     String
+  userId    String
+  action    String   // CREATE_RECORD | UPDATE_RECORD | DELETE_RECORD | LOGIN | etc.
+  entity    String   // financial_record | user
+  entityId  String
+  ipAddress String?
+  userAgent String?
+  before    Json?    // snapshot before mutation (null for creates)
+  after     Json?    // snapshot after mutation  (null for deletes)
+  createdAt DateTime @default(now())
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id])
+
+  @@index([orgId])
+  @@index([userId])
+  @@index([entity, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REFRESH TOKEN
+// Store hash of token (not raw value) — defense in depth against DB leaks.
+// Rotation: on every refresh, old token is revoked + new one issued.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique  // SHA-256 of actual token
+  expiresAt DateTime
+  revoked   Boolean   @default(false)
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("refresh_tokens")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// IDEMPOTENCY KEY
+// Prevents duplicate writes on POST /records and POST /auth/*.
+// Keyed by client-provided Idempotency-Key header.
+// Response is cached for TTL period — replay returns same response.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model IdempotencyKey {
+  key        String   @id                // client-provided UUID header value
+  userId     String
+  statusCode Int
+  response   Json
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])  // for cleanup job
+  @@map("idempotency_keys")
+}
