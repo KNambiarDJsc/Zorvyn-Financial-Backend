@@ -1,0 +1,15 @@
+version: "3.9"
+
+# Development override — run with:
+#   docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  app:
+    build:
+      target: deps # use deps stage (no build step) for fast startup
+    volumes:
+      - ./src:/app/src # hot reload via ts-node-dev
+      - ./prisma:/app/prisma
+    command: npm run dev
+    environment:
+      NODE_ENV: development
