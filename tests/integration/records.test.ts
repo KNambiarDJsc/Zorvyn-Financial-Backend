@@ -42,7 +42,7 @@ import {
 
 const mockRepo = recordRepo as jest.Mocked<typeof recordRepo>;
 
-// ─── Shared fixtures ──────────────────────────────────────────────────────────
+
 
 const RECORD_ID = "00000000-0000-0000-0000-000000000099";
 
@@ -63,9 +63,7 @@ function makeRecord(overrides = {}) {
     };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// POST /api/v1/records — ADMIN only
-// ─────────────────────────────────────────────────────────────────────────────
+
 
 describe("POST /api/v1/records — role enforcement", () => {
     let app: Awaited<ReturnType<typeof buildTestApp>>["app"];
@@ -152,9 +150,7 @@ describe("POST /api/v1/records — role enforcement", () => {
     });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /api/v1/records — All roles
-// ─────────────────────────────────────────────────────────────────────────────
+
 
 describe("GET /api/v1/records — all roles can read", () => {
     let app: Awaited<ReturnType<typeof buildTestApp>>["app"];
@@ -217,9 +213,7 @@ describe("GET /api/v1/records — all roles can read", () => {
     });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PATCH /api/v1/records/:id — ADMIN + ANALYST
-// ─────────────────────────────────────────────────────────────────────────────
+
 
 describe("PATCH /api/v1/records/:id — role enforcement", () => {
     let app: Awaited<ReturnType<typeof buildTestApp>>["app"];
@@ -287,9 +281,7 @@ describe("PATCH /api/v1/records/:id — role enforcement", () => {
     });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// DELETE /api/v1/records/:id — ADMIN only
-// ─────────────────────────────────────────────────────────────────────────────
+
 
 describe("DELETE /api/v1/records/:id — ADMIN only", () => {
     let app: Awaited<ReturnType<typeof buildTestApp>>["app"];
@@ -352,9 +344,7 @@ describe("DELETE /api/v1/records/:id — ADMIN only", () => {
     });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /api/v1/records/:id — cross-org isolation
-// ─────────────────────────────────────────────────────────────────────────────
+
 
 describe("Tenant isolation — cross-org access", () => {
     let app: Awaited<ReturnType<typeof buildTestApp>>["app"];
