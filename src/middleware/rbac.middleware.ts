@@ -1,22 +1,3 @@
-/**
- * RBAC Middleware
- *
- * Enforces role-based access control at the route level.
- * Must run AFTER authenticate() so req.user is populated.
- *
- * Two flavours:
- *  - authorize(roles)      → allow if user has one of these roles
- *  - requirePermission(p)  → allow if user's role has this permission
- *
- * Usage:
- *   // Role-based
- *   fastify.addHook("onRequest", authenticate)
- *   fastify.addHook("onRequest", authorize([RoleName.ADMIN]))
- *
- *   // Permission-based (preferred — decoupled from role names)
- *   fastify.addHook("onRequest", requirePermission(PERMISSIONS.RECORDS_CREATE))
- */
-
 import { FastifyRequest, FastifyReply } from "fastify";
 import { RoleName } from "@prisma/client";
 import { Permission, hasPermission, hasAnyPermission } from "../constants/permissions";

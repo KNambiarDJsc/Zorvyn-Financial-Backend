@@ -1,14 +1,3 @@
-/**
- * Authentication Middleware
- *
- * Verifies the Bearer JWT on every protected route.
- * On success: populates req.user = { userId, orgId, role }
- * On failure: returns 401 immediately — request never reaches handler.
- *
- * Usage in routes:
- *   fastify.addHook("onRequest", authenticate)
- */
-
 import { FastifyRequest, FastifyReply } from "fastify";
 import { RoleName } from "@prisma/client";
 import { verifyAccessToken } from "../utils/jwt";
